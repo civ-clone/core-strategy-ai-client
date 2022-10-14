@@ -1,0 +1,30 @@
+{
+  "name": "@civ-clone/core-strategy-ai-client",
+  "version": "0.1.0",
+  "main": "index.js",
+  "repository": "git@github.com:civ-clone/core-strategy-ai-client.git",
+  "keywords": [
+    "typescript",
+    "civilization"
+  ],
+  "author": "dom111 <dom111@users.noreply.github.com>",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "build": "npm run ts:compile && npm run prettier:format",
+    "prettier:check": "prettier --config .prettierrc '**/*.ts'",
+    "prettier:format": "prettier --config .prettierrc '**/*.ts' --write",
+    "ts:compile": "tsc --build tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^16.0",
+    "prettier": "^2.1",
+    "typescript": "^4.0"
+  },
+  "dependencies": {
+    "@civ-clone/core-ai-client": "^0.1.0",
+    "@civ-clone/core-civilization": "^0.1.1",
+    "@civ-clone/core-player": "^0.1.4",
+    "@civ-clone/core-strategy": "^0.1.0"
+  }
+}
