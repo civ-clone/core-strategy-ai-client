@@ -10,6 +10,7 @@ import AIClient from '@civ-clone/core-ai-client/AIClient';
 import Player from '@civ-clone/core-player/Player';
 import PlayerAction from '@civ-clone/core-player/PlayerAction';
 import UnhandledAction from './UnhandledAction';
+import DataObject from '@civ-clone/core-data-object/DataObject';
 
 const MAX_ACTIONS_PER_TURN = 3000;
 
@@ -39,17 +40,25 @@ export class StrategyAIClient extends AIClient {
 
       if (loopCheck++ > MAX_ACTIONS_PER_TURN) {
         throw new UnhandledAction(
-          `Loop detected on '${Object.toString.call(
-            action
-          )}' (${Object.toString.call(action.value())})`
+          `Loop detected on '${
+            action instanceof DataObject ? action.id() : action
+          }' (${
+            action.value() instanceof DataObject
+              ? action.value().id()
+              : action.value()
+          })`
         );
       }
 
       if (!(await this.attempt(action))) {
         throw new UnhandledAction(
-          `No handler succeeded for '${Object.toString.call(
-            action
-          )}' (${Object.toString.call(action.value())})`
+          `No handler succeeded for '${
+            action instanceof DataObject ? action.id() : action
+          }' (${
+            action.value() instanceof DataObject
+              ? action.value().id()
+              : action.value()
+          })`
         );
       }
     }

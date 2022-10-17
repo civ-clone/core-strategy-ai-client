@@ -17,6 +17,7 @@ const LeaderRegistry_1 = require("@civ-clone/core-civilization/LeaderRegistry");
 const StrategyRegistry_1 = require("@civ-clone/core-strategy/StrategyRegistry");
 const AIClient_1 = require("@civ-clone/core-ai-client/AIClient");
 const UnhandledAction_1 = require("./UnhandledAction");
+const DataObject_1 = require("@civ-clone/core-data-object/DataObject");
 const MAX_ACTIONS_PER_TURN = 3000;
 class StrategyAIClient extends AIClient_1.default {
     constructor(player, leaderRegistry = LeaderRegistry_1.instance, strategyRegistry = StrategyRegistry_1.instance) {
@@ -33,10 +34,14 @@ class StrategyAIClient extends AIClient_1.default {
         while (this.player().hasMandatoryActions()) {
             const action = this.player().mandatoryAction();
             if (loopCheck++ > MAX_ACTIONS_PER_TURN) {
-                throw new UnhandledAction_1.default(`Loop detected on '${Object.toString.call(action)}' (${Object.toString.call(action.value())})`);
+                throw new UnhandledAction_1.default(`Loop detected on '${action instanceof DataObject_1.default ? action.id() : action}' (${action.value() instanceof DataObject_1.default
+                    ? action.value().id()
+                    : action.value()})`);
             }
             if (!(await this.attempt(action))) {
-                throw new UnhandledAction_1.default(`No handler succeeded for '${Object.toString.call(action)}' (${Object.toString.call(action.value())})`);
+                throw new UnhandledAction_1.default(`No handler succeeded for '${action instanceof DataObject_1.default ? action.id() : action}' (${action.value() instanceof DataObject_1.default
+                    ? action.value().id()
+                    : action.value()})`);
             }
         }
     }

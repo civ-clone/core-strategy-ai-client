@@ -1,7 +1,6 @@
 {
   "name": "@civ-clone/core-strategy-ai-client",
-  "version": "0.1.0",
-  "main": "index.js",
+  "version": "0.1.1",
   "repository": "git@github.com:civ-clone/core-strategy-ai-client.git",
   "keywords": [
     "typescript",
@@ -24,6 +23,7 @@
   "dependencies": {
     "@civ-clone/core-ai-client": "^0.1.0",
     "@civ-clone/core-civilization": "^0.1.1",
+    "@civ-clone/core-data-object": "^0.1.9",
     "@civ-clone/core-player": "^0.1.4",
     "@civ-clone/core-strategy": "^0.1.0"
   }
