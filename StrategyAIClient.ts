@@ -1,34 +1,60 @@
+import { AIClient, IAIClient } from '@civ-clone/core-ai-client/AIClient';
 import {
-  LeaderRegistry,
-  instance as leaderRegistryInstance,
-} from '@civ-clone/core-civilization/LeaderRegistry';
+  ChoiceMeta,
+  DataForChoiceMeta,
+} from '@civ-clone/core-client/ChoiceMeta';
 import {
   StrategyRegistry,
   instance as strategyRegistryInstance,
 } from '@civ-clone/core-strategy/StrategyRegistry';
-import AIClient from '@civ-clone/core-ai-client/AIClient';
+import ChooseFromList from './PlayerActions/ChooseFromList';
+import Data from './PlayerActions/ChooseFromList/Data';
+import DataObject from '@civ-clone/core-data-object/DataObject';
 import Player from '@civ-clone/core-player/Player';
 import PlayerAction from '@civ-clone/core-player/PlayerAction';
 import UnhandledAction from './UnhandledAction';
-import DataObject from '@civ-clone/core-data-object/DataObject';
 
-const MAX_ACTIONS_PER_TURN = 3000;
+const MAX_ACTIONS_PER_TURN = 10_000;
 
-export class StrategyAIClient extends AIClient {
+export interface IStrategyAIClient extends IAIClient {
+  attempt(action: PlayerAction): boolean;
+}
+
+export class StrategyAIClient extends AIClient implements IStrategyAIClient {
   #strategyRegistry: StrategyRegistry;
 
   constructor(
     player: Player,
-    leaderRegistry: LeaderRegistry = leaderRegistryInstance,
-    strategyRegistry: StrategyRegistry = strategyRegistryInstance
+    strategyRegistry: StrategyRegistry = strategyRegistryInstance,
+    randomNumberGenerator: () => number = () => Math.random()
   ) {
-    super(player, leaderRegistry);
+    super(player, randomNumberGenerator);
 
     this.#strategyRegistry = strategyRegistry;
   }
 
   attempt(action: PlayerAction): boolean {
     return this.#strategyRegistry.attempt(action);
+  }
+
+  async chooseFromList<Name extends keyof ChoiceMetaDataMap>(
+    meta: ChoiceMeta<Name>
+  ): Promise<DataForChoiceMeta<ChoiceMeta<Name>>> {
+    const data = new Data<Name>(meta);
+
+    try {
+      if (this.attempt(new ChooseFromList(this.player(), data))) {
+        return data.value()!;
+      }
+    } catch (e) {
+      if (!(e instanceof UnhandledAction)) {
+        throw e;
+      }
+
+      console.warn(e);
+    }
+
+    return super.chooseFromList(meta);
   }
 
   async takeTurn(): Promise<void> {
@@ -61,6 +87,18 @@ export class StrategyAIClient extends AIClient {
           })`
         );
       }
+    }
+
+    // We don't need to worry about unhandled actions here as they won't be mandatory...
+    await Promise.all(
+      this.player()
+        .actions()
+        .map((action) => this.attempt(action))
+    );
+
+    // ...but they could result in some mandatory `Action`s, so lets check and re-run...
+    if (this.player().hasMandatoryActions()) {
+      await this.takeTurn();
     }
   }
 }

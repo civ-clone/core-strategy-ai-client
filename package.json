@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@civ-clone/core-ai-client": "^0.1.0",
+    "@civ-clone/core-client": "^0.1.0",
     "@civ-clone/core-civilization": "^0.1.1",
     "@civ-clone/core-data-object": "^0.1.9",
     "@civ-clone/core-player": "^0.1.4",

@@ -1,6 +1,6 @@
 # core-strategy-ai-client
 
-A simple[1] AI[2] client, that makes use of `Strategy`s and `Routine`s to be an extensible opponent client.
+A simple[1] AI[2] client, that makes use of `Strategy`s to be an extensible opponent client.
 
 The aims behind `core-strategy` are to continue to have a system that can be tweaked as needed, e.g. when adding
 religion to the game, you'd need to handle those events, and instead of modifying the core with optional extensions,
