@@ -1,25 +1,33 @@
 import ChoiceMeta from '@civ-clone/core-client/ChoiceMeta';
+
 export class Data<
   Name extends keyof ChoiceMetaDataMap,
   Type = ChoiceMetaDataMap[Name]
 > {
-  #meta: ChoiceMeta<Name>;
-  #value: Type | undefined;
+  private _chosen: boolean = false;
+  private _meta: ChoiceMeta<Name>;
+  private _value: Type | undefined;
 
   constructor(meta: ChoiceMeta<Name>) {
-    this.#meta = meta;
+    this._meta = meta;
   }
 
-  choose(value: Type) {
-    this.#value = value;
+  choose(value: Type): void {
+    this._chosen = true;
+    this._value = value;
+  }
+
+  /** Whether a `Strategy` has called `choose`. */
+  chosen(): boolean {
+    return this._chosen;
   }
 
   meta(): ChoiceMeta<Name> {
-    return this.#meta;
+    return this._meta;
   }
 
   value(): Type | undefined {
-    return this.#value;
+    return this._value;
   }
 }
 
