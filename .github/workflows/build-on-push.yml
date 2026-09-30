@@ -23,4 +23,11 @@ jobs:
           --config.minimum-release-age=0
           --config.strict-dep-builds=false
       - run: npm run --if-present prettier:check
+      # The tests load the committed `.js`, so compile to prove the source
+      # type-checks, and fail if the committed output is stale. `--force`
+      # because a fresh checkout's timestamps can make `tsc --build` treat the
+      # committed output as up to date and skip the compile entirely.
+      - run: npm run --if-present ts:compile -- --force
+      - run: npm run --if-present prettier:format
+      - run: git diff --exit-code
       - run: npm run --if-present test
