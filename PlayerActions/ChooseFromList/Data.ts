@@ -26,6 +26,12 @@ export class Data<
     return this._meta;
   }
 
+  /** Forgets any choice, so the next `Strategy` starts from nothing. */
+  reset(): void {
+    this._chosen = false;
+    this._value = undefined;
+  }
+
   value(): Type | undefined {
     return this._value;
   }

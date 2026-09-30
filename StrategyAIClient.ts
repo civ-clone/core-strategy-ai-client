@@ -45,21 +45,25 @@ export class StrategyAIClient extends AIClient implements IStrategyAIClient {
   }
 
   /**
-   * Offers the choice to the `Strategy`s as a `ChooseFromList` action. A `Strategy` answers by calling `choose` on the
-   * action's value and returning `true`. If none does, the choice falls back to `Client`'s, a random pick.
+   * Offers the choice to the `Strategy`s as a `ChooseFromList` action, one at a time in the registry's order. A
+   * `Strategy` answers by calling `choose` on the action's value and returning `true`; the first to do both wins, and
+   * later `Strategy`s are not tried. A choice made by a `Strategy` that then returns `false` is discarded. If none
+   * answers, the choice falls back to `Client`'s, a random pick.
    */
   async chooseFromList<Name extends keyof ChoiceMetaDataMap>(
     meta: ChoiceMeta<Name>
   ): Promise<DataForChoiceMeta<ChoiceMeta<Name>>> {
-    const data = new Data<Name>(meta);
+    const data = new Data<Name>(meta),
+      action = new ChooseFromList(this.player(), data);
 
-    if (
-      (await this._strategyRegistry.attempt(
-        new ChooseFromList(this.player(), data)
-      )) &&
-      data.chosen()
-    ) {
-      return data.value() as DataForChoiceMeta<ChoiceMeta<Name>>;
+    // Not `registry.attempt`, which only says that *some* `Strategy` returned `true`: the choice must come from that
+    // same `Strategy`.
+    for (const strategy of this._strategyRegistry.ordered(action)) {
+      data.reset();
+
+      if ((await strategy.attempt(action)) && data.chosen()) {
+        return data.value() as DataForChoiceMeta<ChoiceMeta<Name>>;
+      }
     }
 
     return super.chooseFromList(meta);
@@ -79,22 +83,30 @@ export class StrategyAIClient extends AIClient implements IStrategyAIClient {
       while (player.hasMandatoryActions()) {
         const action = player.mandatoryAction();
 
+        if (actionCount++ > this.actionLimit()) {
+          await this.actionLimitReached(action);
+
+          break;
+        }
+
+        let handled: boolean;
+
+        // Only a `Strategy`'s failure goes to `actionFailed`. A throw from the hooks above and below fails the turn, so
+        // an `actionFailed` that carries on can't also carry on past the action limit.
         try {
-          if (actionCount++ > this.actionLimit()) {
-            await this.actionLimitReached(action);
-
-            break;
-          }
-
-          if (!(await this._strategyRegistry.attempt(action))) {
-            await this.unhandledAction(action);
-
-            break;
-          }
+          handled = await this._strategyRegistry.attempt(action);
         } catch (error) {
-          if (!(await this.actionFailed(action, error))) {
-            break;
+          if (await this.actionFailed(action, error)) {
+            continue;
           }
+
+          break;
+        }
+
+        if (!handled) {
+          await this.unhandledAction(action);
+
+          break;
         }
       }
 
@@ -115,6 +127,9 @@ export class StrategyAIClient extends AIClient implements IStrategyAIClient {
   /**
    * Called when a `Strategy` throws while handling `action`. Return `true` to carry on with the next action, `false`
    * to end the turn (`AfterTurn` still runs), or throw to fail the turn. By default the error is rethrown.
+   *
+   * Only failures of the `Strategy`s come here: a throw from `actionLimit`, `actionLimitReached` or `unhandledAction`
+   * fails the turn.
    */
   protected actionFailed(
     action: MandatoryPlayerAction,

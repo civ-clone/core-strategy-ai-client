@@ -11,6 +11,8 @@ export declare class Data<
   /** Whether a `Strategy` has called `choose`. */
   chosen(): boolean;
   meta(): ChoiceMeta<Name>;
+  /** Forgets any choice, so the next `Strategy` starts from nothing. */
+  reset(): void;
   value(): Type | undefined;
 }
 export default Data;
