@@ -17,6 +17,11 @@ class Data {
     meta() {
         return this._meta;
     }
+    /** Forgets any choice, so the next `Strategy` starts from nothing. */
+    reset() {
+        this._chosen = false;
+        this._value = undefined;
+    }
     value() {
         return this._value;
     }

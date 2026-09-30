@@ -32,8 +32,10 @@ export declare class StrategyAIClient
     randomNumberGenerator?: () => number
   );
   /**
-   * Offers the choice to the `Strategy`s as a `ChooseFromList` action. A `Strategy` answers by calling `choose` on the
-   * action's value and returning `true`. If none does, the choice falls back to `Client`'s, a random pick.
+   * Offers the choice to the `Strategy`s as a `ChooseFromList` action, one at a time in the registry's order. A
+   * `Strategy` answers by calling `choose` on the action's value and returning `true`; the first to do both wins, and
+   * later `Strategy`s are not tried. A choice made by a `Strategy` that then returns `false` is discarded. If none
+   * answers, the choice falls back to `Client`'s, a random pick.
    */
   chooseFromList<Name extends keyof ChoiceMetaDataMap>(
     meta: ChoiceMeta<Name>
@@ -42,6 +44,9 @@ export declare class StrategyAIClient
   /**
    * Called when a `Strategy` throws while handling `action`. Return `true` to carry on with the next action, `false`
    * to end the turn (`AfterTurn` still runs), or throw to fail the turn. By default the error is rethrown.
+   *
+   * Only failures of the `Strategy`s come here: a throw from `actionLimit`, `actionLimitReached` or `unhandledAction`
+   * fails the turn.
    */
   protected actionFailed(
     action: MandatoryPlayerAction,

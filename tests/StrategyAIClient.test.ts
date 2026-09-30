@@ -401,6 +401,83 @@ describe('StrategyAIClient', () => {
         expect(queue).eql(['b', 'c']);
         expect(log).eql(['before', 'after']);
       });
+
+      // An `actionFailed` that always carries on must not be able to carry on past the loop guard.
+      class ForgivingClient extends StrategyAIClient {
+        public failed: unknown[] = [];
+        private _hookError: Error;
+        private _hook: 'actionLimitReached' | 'unhandledAction';
+
+        constructor(
+          player: Player,
+          strategyRegistry: StrategyRegistry,
+          hook: 'actionLimitReached' | 'unhandledAction',
+          hookError: Error
+        ) {
+          super(player, strategyRegistry);
+
+          this._hook = hook;
+          this._hookError = hookError;
+        }
+
+        protected actionFailed(
+          action: MandatoryPlayerAction,
+          error: unknown
+        ): boolean {
+          this.failed.push(error);
+
+          return true;
+        }
+
+        protected actionLimit(): number {
+          return 2;
+        }
+
+        protected actionLimitReached(): void {
+          if (this._hook === 'actionLimitReached') {
+            throw this._hookError;
+          }
+        }
+
+        protected unhandledAction(): void {
+          if (this._hook === 'unhandledAction') {
+            throw this._hookError;
+          }
+        }
+      }
+
+      (['actionLimitReached', 'unhandledAction'] as const).forEach((hook) =>
+        it(`should fail the turn, not call \`actionFailed\`, when \`${hook}\` throws`, async () => {
+          const queue = ['a'],
+            player = setUpPlayer(queue),
+            strategyRegistry = new StrategyRegistry(),
+            hookError = new Error(hook),
+            log: string[] = [],
+            client = new ForgivingClient(
+              player,
+              strategyRegistry,
+              hook,
+              hookError
+            );
+
+          strategyRegistry.register(
+            hooks(log),
+            new LambdaStrategy(
+              (action) => action instanceof Pending,
+              // Stuck, for the limit; unhandled otherwise.
+              () => hook === 'actionLimitReached'
+            )
+          );
+
+          let caught: unknown = null;
+
+          await client.takeTurn().catch((reason) => (caught = reason));
+
+          expect(caught).equal(hookError);
+          expect(client.failed).eql([]);
+          expect(log).eql(['before']);
+        })
+      );
     });
 
     describe('action limit', () => {
@@ -585,6 +662,76 @@ describe('StrategyAIClient', () => {
         ).chooseFromList(meta())
       ).equal(CivilizationC);
       expect(randomNumberGenerator).called.once;
+    });
+
+    it('should discard a choice from a `Strategy` that returns `false`, and fall back if no later one chooses', async () => {
+      const player = setUpPlayer([]),
+        strategyRegistry = new StrategyRegistry(),
+        randomNumberGenerator = spy(() => 0.9),
+        attempted: string[] = [];
+
+      strategyRegistry.register(
+        new LambdaStrategy(
+          (action) => action instanceof ChooseFromList,
+          (action) => {
+            const data = (action as ChooseFromList).value();
+
+            attempted.push('rejecting');
+            data.choose(data.meta().choices()[0].value());
+
+            return false;
+          }
+        ),
+        new LambdaStrategy(
+          (action) => action instanceof ChooseFromList,
+          () => {
+            attempted.push('not choosing');
+
+            return true;
+          }
+        )
+      );
+
+      expect(
+        await new StrategyAIClient(
+          player,
+          strategyRegistry,
+          randomNumberGenerator
+        ).chooseFromList(meta())
+      ).equal(CivilizationC);
+      expect(attempted).eql(['rejecting', 'not choosing']);
+      expect(randomNumberGenerator).called.once;
+    });
+
+    it('should use the first `Strategy` that chooses and returns `true`, and not try later ones', async () => {
+      const player = setUpPlayer([]),
+        strategyRegistry = new StrategyRegistry(),
+        randomNumberGenerator = spy(() => 0.9),
+        later = spy(() => true);
+
+      strategyRegistry.register(
+        new LambdaStrategy(
+          (action) => action instanceof ChooseFromList,
+          (action) => {
+            const data = (action as ChooseFromList).value();
+
+            data.choose(data.meta().choices()[0].value());
+
+            return true;
+          }
+        ),
+        new LambdaStrategy((action) => action instanceof ChooseFromList, later)
+      );
+
+      expect(
+        await new StrategyAIClient(
+          player,
+          strategyRegistry,
+          randomNumberGenerator
+        ).chooseFromList(meta())
+      ).equal(CivilizationA);
+      expect(later).not.called();
+      expect(randomNumberGenerator).not.called();
     });
   });
 
