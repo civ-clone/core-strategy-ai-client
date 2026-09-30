@@ -3,9 +3,13 @@ export declare class Data<
   Name extends keyof ChoiceMetaDataMap,
   Type = ChoiceMetaDataMap[Name]
 > {
-  #private;
+  private _chosen;
+  private _meta;
+  private _value;
   constructor(meta: ChoiceMeta<Name>);
   choose(value: Type): void;
+  /** Whether a `Strategy` has called `choose`. */
+  chosen(): boolean;
   meta(): ChoiceMeta<Name>;
   value(): Type | undefined;
 }
