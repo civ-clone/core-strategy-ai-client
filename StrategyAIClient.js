@@ -50,11 +50,10 @@ class StrategyAIClient extends AIClient_1.AIClient {
             const player = this.player();
             await this._strategyRegistry.attemptAll(new BeforeTurn_1.default(player, player));
             let actionCount = 0;
-            // Each of `hasMandatoryActions` and `mandatoryAction` builds the player's actions afresh, which creates
-            // `PlayerAction`s and so uses up `DataObject` ids. So each is called exactly once per action, and nothing else
-            // here lists the player's actions.
-            while (player.hasMandatoryActions()) {
-                const action = player.mandatoryAction();
+            // `mandatoryAction` builds the player's actions, at least up to the first mandatory one, which creates
+            // `PlayerAction`s and so uses up `DataObject` ids. So it is called exactly once per action, and nothing else here
+            // lists the player's actions. `undefined` means there's nothing left to do.
+            for (let action = player.mandatoryAction(); action !== undefined; action = player.mandatoryAction()) {
                 if (actionCount++ > this.actionLimit()) {
                     await this.actionLimitReached(action);
                     break;

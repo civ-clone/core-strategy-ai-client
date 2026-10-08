@@ -45,9 +45,12 @@ const setUpPlayer = (queue: string[]) => {
   return player;
 };
 
-// Records calls to the `Player`'s action-listing methods, in order. The wrappers are own properties, so the `Player`'s
-// own internal `this.actions()` calls are recorded too.
-const recordCalls = (player: Player, log: string[]): void =>
+// Records the client's calls to the `Player`'s action-listing methods, in order. The wrappers are own properties, so
+// the `Player`'s own internal calls (`mandatoryActions` calling `actions`, say) would be seen too; only the outermost
+// call is recorded, so these tests don't depend on how core-player builds its answers.
+const recordCalls = (player: Player, log: string[]): void => {
+  let depth = 0;
+
   (
     [
       'actions',
@@ -59,11 +62,20 @@ const recordCalls = (player: Player, log: string[]): void =>
     const original = player[method].bind(player) as () => any;
 
     (player as any)[method] = (): any => {
-      log.push(method);
+      if (depth === 0) {
+        log.push(method);
+      }
 
-      return original();
+      depth++;
+
+      try {
+        return original();
+      } finally {
+        depth--;
+      }
     };
   });
+};
 
 class LambdaStrategy extends Strategy {
   private _attempt: (action: PlayerAction) => boolean | Promise<boolean>;
@@ -120,7 +132,7 @@ class RecordingClient extends StrategyAIClient {
 
 describe('StrategyAIClient', () => {
   describe('takeTurn', () => {
-    it('should call `hasMandatoryActions` then `mandatoryAction` once per action, and list actions nowhere else', async () => {
+    it('should call `mandatoryAction` once per action, and list actions nowhere else', async () => {
       const queue = ['a', 'b', 'c'],
         player = setUpPlayer(queue),
         strategyRegistry = new StrategyRegistry(),
@@ -131,17 +143,8 @@ describe('StrategyAIClient', () => {
 
       await new StrategyAIClient(player, strategyRegistry).takeTurn();
 
-      // Three `Pending`s, then `EndTurnLike`, which ends the turn. `hasMandatoryActions` calls `actions`, and
-      // `mandatoryAction` calls `mandatoryActions`, which calls `actions`.
-      expect(calls).eql(
-        Array.from({ length: 4 }, () => [
-          'hasMandatoryActions',
-          'actions',
-          'mandatoryAction',
-          'mandatoryActions',
-          'actions',
-        ]).flat()
-      );
+      // Three `Pending`s, then `EndTurnLike`, which nothing here handles, so the turn ends.
+      expect(calls).eql(Array.from({ length: 4 }, () => 'mandatoryAction'));
     });
 
     it('should run `BeforeTurn` and `AfterTurn` once each, around the actions, for every `Strategy` that handles them', async () => {
@@ -218,20 +221,14 @@ describe('StrategyAIClient', () => {
 
       await new StrategyAIClient(player, strategyRegistry).takeTurn();
 
-      expect(log.filter((entry) => !entry.startsWith('actions'))).eql([
-        'hasMandatoryActions',
+      expect(log).eql([
         'mandatoryAction',
-        'mandatoryActions',
         'start a',
         'end a',
-        'hasMandatoryActions',
         'mandatoryAction',
-        'mandatoryActions',
         'start b',
         'end b',
-        'hasMandatoryActions',
         'mandatoryAction',
-        'mandatoryActions',
       ]);
     });
 
@@ -531,12 +528,7 @@ describe('StrategyAIClient', () => {
         // As `SimpleAIClient`'s `loopCheck++ > 1e3`: the check follows `mandatoryAction`, so the action that trips it
         // has been fetched but is not offered.
         expect(attempts.length).equal(6);
-        expect(
-          calls.filter((call) => call === 'hasMandatoryActions').length
-        ).equal(7);
-        expect(calls.filter((call) => call === 'mandatoryAction').length).equal(
-          7
-        );
+        expect(calls).eql(Array.from({ length: 7 }, () => 'mandatoryAction'));
         expect(client.reached.length).equal(1);
         expect(client.reached[0].value()).equal('a');
         expect(log).eql(['before', 'after']);
