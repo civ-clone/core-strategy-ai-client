@@ -147,6 +147,24 @@ describe('StrategyAIClient', () => {
       expect(calls).eql(Array.from({ length: 4 }, () => 'mandatoryAction'));
     });
 
+    it('should end the turn when there is no mandatory action, and still run `AfterTurn`', async () => {
+      // No `Action` rules at all, so `mandatoryAction` returns `undefined` straight away.
+      const player = new Player(new RuleRegistry()),
+        strategyRegistry = new StrategyRegistry(),
+        calls: string[] = [],
+        log: string[] = [],
+        client = new RecordingClient(player, strategyRegistry);
+
+      strategyRegistry.register(hooks(log));
+      recordCalls(player, calls);
+
+      await client.takeTurn();
+
+      expect(calls).eql(['mandatoryAction']);
+      expect(client.unhandled).eql([]);
+      expect(log).eql(['before', 'after']);
+    });
+
     it('should run `BeforeTurn` and `AfterTurn` once each, around the actions, for every `Strategy` that handles them', async () => {
       const queue = ['a', 'b'],
         player = setUpPlayer(queue),
